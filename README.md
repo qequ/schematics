@@ -39,6 +39,39 @@ You can also validate complex arrays
     schema.validate([["hello", "world"], 1, [[true]]]) # => true
 ```
 
+### Hashes
+
+Validating hashes with basic types:
+
+```crystal
+schema = Schema.new(Hash(String, Int32))
+schema.validate({"a" => 1, "b" => 2}) # => true
+```
+
+Hashes with different key types should fail:
+
+```crystal
+schema = Schema.new(Hash(String, Int32))
+schema.validate({"a" => 1, 1 => 2}) # => false
+```
+
+Nested hashes:
+
+```crystal
+schema = Schema.new(Hash(String, Hash(String, Int32)))
+schema.validate({"a" => {"b" => 1}, "c" => {"d" => 2}}) # => true
+```
+
+Hashes with mixed types:
+
+```crystal
+schema = Schema.new(Hash(String, Array(Int32)))
+schema.validate({"a" => [1,2,3], "b" => [4,5,6]}) # => true
+```
+
+For more examples and advanced use cases, check the specs.
+
+
 for more examples check the specs
 
 
