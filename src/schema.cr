@@ -14,6 +14,7 @@ class Schema(T)
 
   def validate(data)
     handler = ArrayDataTypeHandler.new
+    handler.setNext(HashDataTypeHandler.new)
     handler.setNext(BasicDataTypeHandler.new)
     handler.handle(data, @schema)
   end
@@ -95,6 +96,35 @@ class ArrayDataTypeHandler < Handler
         else
           return false
         end
+      else
+        return false
+      end
+    else
+      @successor.try &.handle(data, schema)
+    end
+  end
+end
+
+# concrete handler for hash data type of schema
+class HashDataTypeHandler < Handler
+  # method to check if given a data and current schema, the data is valid creating a new schema
+  def checkCurrentdata(data, current_schema)
+    return Schema.new(current_schema).validate(data)
+  end
+
+  def handle(data, schema)
+    if schema.is_a?(Hash)
+      if data.is_a?(Hash)
+        # Iterate over each key-value pair in the data
+        data.each do |key, value_data|
+          # Get the expected type from the schema (default to Nil if not specified)
+          value_schema = schema[key]? || Nil
+          # Validate each value in the data hash against its corresponding schema
+          unless checkCurrentdata(value_data, value_schema)
+            return false
+          end
+        end
+        return true
       else
         return false
       end
