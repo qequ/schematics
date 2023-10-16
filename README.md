@@ -50,7 +50,7 @@ Upcoming versions should parse more complex types like Hashes, Structs, etc.
 
 ### TODO
 
-- [ ] Add support for Hashes
+- [x] Add support for Hashes
 - [ ] Add support for Structs
 - [ ] Add support for custom types
 - [ ] Add support for custom validations
