@@ -1,5 +1,14 @@
 require "./spec_helper"
 
+# Define a simple struct for testing
+struct Person
+  property name : String
+  property age : Int32
+
+  def initialize(@name : String, @age : Int32)
+  end
+end
+
 describe Schematics do
   it "ShouldvalidateBasicData" do
     schema = Schema.new(String)
@@ -133,5 +142,57 @@ describe Schematics do
     schema.validate({"a" => {"b" => [1, 2, 3.0]}, "c" => {"d" => [4, 5, 6]}}).should eq(false)
     schema.validate({"a" => {"b" => [1, 2, "Hello"]}, "c" => {"d" => [4, 5, 6]}}).should eq(false)
     schema.validate({"a" => {"b" => [1, 2, nil]}, "c" => {"d" => [4, 5, 6]}}).should eq(false)
+  end
+
+  describe "Schema with Structs" do
+    it "validates struct data correctly" do
+      # Create an instance of the struct
+      person_instance = Person.new(name: "John", age: 30)
+
+      # Create a schema using the struct type
+      schema = Schema.new(Person)
+
+      # Validate the instance against the schema
+      schema.validate(person_instance).should eq(true)
+
+      # Test with incorrect data type
+      schema.validate("Not a Person struct").should eq(false)
+    end
+  end
+
+  describe "Schema with Mixed Structs" do
+    it "validates arrays containing structs correctly" do
+      # Create an array of Person structs
+      people_array = [Person.new(name: "John", age: 30), Person.new(name: "Jane", age: 25)]
+
+      # Create a schema using an array of Person structs
+      schema = Schema.new(Array(Person))
+
+      # Validate the array against the schema
+      schema.validate(people_array).should eq(true)
+
+      # Test with an array containing incorrect data type
+      incorrect_array = [Person.new(name: "John", age: 30), "Not a Person struct"]
+      schema.validate(incorrect_array).should eq(false)
+    end
+
+    it "validates hashes with structs correctly" do
+      # Create a hash with Person structs as values
+      people_hash = {"John" => Person.new(name: "John", age: 30), "Jane" => Person.new(name: "Jane", age: 25)}
+
+      # Create a schema using a hash with Person structs as values
+      schema = Schema.new(Hash(String, Person))
+
+      # Validate the hash against the schema
+      schema.validate(people_hash).should eq(true)
+
+      # Test with a hash containing incorrect data type as value
+      incorrect_hash = {"John" => Person.new(name: "John", age: 30), "Jane" => "Not a Person struct"}
+      schema.validate(incorrect_hash).should eq(false)
+
+      # Test with a hash containing incorrect data type as key
+      incorrect_key_hash = {Person.new(name: "John", age: 30) => "John", "Jane" => Person.new(name: "Jane", age: 25)}
+      schema.validate(incorrect_key_hash).should eq(false)
+    end
   end
 end
