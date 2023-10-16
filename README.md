@@ -69,7 +69,7 @@ schema = Schema.new(Hash(String, Array(Int32)))
 schema.validate({"a" => [1,2,3], "b" => [4,5,6]}) # => true
 ```
 
-Structs
+### Structs
 
 You can validate data against a struct:
 
