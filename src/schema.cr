@@ -14,6 +14,7 @@ class Schema(T)
 
   def validate(data)
     handler = ArrayDataTypeHandler.new
+    handler.setNext(StructDataTypeHandler.new)
     handler.setNext(HashDataTypeHandler.new)
     handler.setNext(BasicDataTypeHandler.new)
     handler.handle(data, @schema)
@@ -128,6 +129,19 @@ class HashDataTypeHandler < Handler
       else
         return false
       end
+    else
+      @successor.try &.handle(data, schema)
+    end
+  end
+end
+
+
+# concrete handler for struct data type of schema
+class StructDataTypeHandler < Handler
+  def handle(data, schema)
+    # If both data and schema are of type Struct, compare their string representations
+    if data.is_a?(Struct) && schema.is_a?(Struct)
+      return data.to_s == schema.to_s
     else
       @successor.try &.handle(data, schema)
     end
