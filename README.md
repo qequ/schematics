@@ -69,10 +69,27 @@ schema = Schema.new(Hash(String, Array(Int32)))
 schema.validate({"a" => [1,2,3], "b" => [4,5,6]}) # => true
 ```
 
+Structs
+
+You can validate data against a struct:
+
+```crystal
+struct Person
+property name : String
+property age : Int32
+
+def initialize(@name : String, @age : Int32)
+end
+end
+
+schema = Schema.new(Person)
+person_instance = Person.new(name: "John", age: 30)
+schema.validate(person_instance) # => true
+```
+
+
 For more examples and advanced use cases, check the specs.
 
-
-for more examples check the specs
 
 
 ## Development
@@ -84,14 +101,14 @@ Upcoming versions should parse more complex types like Hashes, Structs, etc.
 ### TODO
 
 - [x] Add support for Hashes
-- [ ] Add support for Structs
+- [x] Add support for Structs
 - [ ] Add support for custom types
 - [ ] Add support for custom validations
 
 
 ## Contributing
 
-1. Fork it (<https://github.com/your-github-user/schematics/fork>)
+1. Fork it (<https://github.com/qequ/schematics/fork>)
 2. Create your feature branch (`git checkout -b my-new-feature`)
 3. Commit your changes (`git commit -am 'Add some feature'`)
 4. Push to the branch (`git push origin my-new-feature`)
@@ -99,4 +116,4 @@ Upcoming versions should parse more complex types like Hashes, Structs, etc.
 
 ## Contributors
 
-- [Alvaro Frias Garay](https://github.com/your-github-user) - creator and maintainer
+- [Alvaro Frias Garay](https://github.com/qequ) - creator and maintainer
