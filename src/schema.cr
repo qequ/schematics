@@ -39,7 +39,23 @@ end
 # concrete handler for basic data type of schema
 class BasicDataTypeHandler < Handler
   def checkSchemaIsBasicType(schema)
-    return schema.is_a?(String) || schema.is_a?(Int) || schema.is_a?(Float) || schema.is_a?(Class) || schema.is_a?(Bool) || schema.is_a?(Int32) || schema.is_a?(Int64) || schema.is_a?(Float32) || schema.is_a?(Float64)
+    return schema.is_a?(String) ||
+      schema.is_a?(Int) ||
+      schema.is_a?(Int8) ||
+      schema.is_a?(Int16) ||
+      schema.is_a?(Int32) ||
+      schema.is_a?(Int64) ||
+      schema.is_a?(UInt8) ||
+      schema.is_a?(UInt16) ||
+      schema.is_a?(UInt32) ||
+      schema.is_a?(UInt64) ||
+      schema.is_a?(Float) ||
+      schema.is_a?(Float32) ||
+      schema.is_a?(Float64) ||
+      schema.is_a?(Bool) ||
+      schema.is_a?(Char) ||
+      schema.is_a?(Class) ||
+      schema.is_a?(Nil)
   end
 
   def handle(data, schema)
