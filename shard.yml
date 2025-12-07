@@ -8,3 +8,8 @@ authors:
 crystal: 1.18.2
 
 license: MIT
+
+development_dependencies:
+  ameba:
+    github: crystal-ameba/ameba
+    version: ~> 1.6.0

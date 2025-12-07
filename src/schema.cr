@@ -20,7 +20,7 @@ module Schematics
       result = validate(data)
       if result.valid?
         if parsed = @validator.call(data)
-          return parsed
+          parsed
         else
           raise ValidationError.new("root", "failed to parse data")
         end

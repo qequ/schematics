@@ -95,10 +95,11 @@ jobs:
 
     - name: Run Ameba (Crystal linter)
       run: |
-        if [ -f .ameba.yml ]; then
-          crystal run lib/ameba/bin/ameba.cr || echo "Ameba not configured"
+        if [ -f ./bin/ameba ]; then
+          echo "Running Ameba linter..."
+          ./bin/ameba
         else
-          echo "Skipping Ameba - not configured"
+          echo "⚠️ Ameba binary not found, skipping lint"
         fi
       continue-on-error: true
 

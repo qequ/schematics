@@ -101,7 +101,7 @@ describe "Schematics::Schema - Complex Scenarios" do
       result.errors.size.should eq(3)
 
       # Check that all error positions are reported
-      error_paths = result.errors.map(&.path).sort
+      error_paths = result.errors.map(&.path).sort!
       error_paths.should eq(["root[2]", "root[4]", "root[6]"])
     end
   end
@@ -251,7 +251,7 @@ describe "Schematics::Schema - Complex Scenarios" do
 
     it "validates very large numbers" do
       schema = Schematics::Schema(Int64).new
-      schema.valid?(9223372036854775807_i64).should eq(true)
+      schema.valid?(9_223_372_036_854_775_807_i64).should eq(true)
     end
 
     it "validates floating point edge cases" do
