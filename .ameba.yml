@@ -1,0 +1,51 @@
+# Ameba configuration file
+# https://github.com/crystal-ameba/ameba
+
+# Globs to exclude
+Excluded:
+  - lib
+  - bin
+
+# Specific rules configuration
+Lint/DebugCalls:
+  Enabled: true
+
+Lint/UnusedArgument:
+  Enabled: true
+
+Lint/ShadowingOuterLocalVar:
+  Enabled: true
+
+Lint/NotNil:
+  Enabled: false  # Allow not_nil! when we know it's safe
+
+Style/LargeNumbers:
+  Enabled: true
+
+Style/NegatedConditionsInUnless:
+  Enabled: true
+
+Style/PredicateName:
+  Enabled: false  # Allow has_default?, get_default patterns
+
+Style/RedundantReturn:
+  Enabled: true
+
+Style/VerboseBlock:
+  Enabled: false
+
+Naming/AccessorMethodName:
+  Enabled: false  # Allow get_default pattern
+
+Naming/QueryBoolMethods:
+  Enabled: false  # Allow getter for boolean fields
+
+Naming/BlockParameterName:
+  Enabled: false  # Allow single-letter block params like |s|, |n|
+
+Metrics/CyclomaticComplexity:
+  Enabled: true
+  MaxComplexity: 15  # Increased for validation examples
+
+Performance/ChainedCallWithNoBang:
+  Enabled: true
