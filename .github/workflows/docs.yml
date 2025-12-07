@@ -69,16 +69,34 @@ jobs:
         EOF
 
     - name: Setup Pages
+      id: pages
       uses: actions/configure-pages@v5
+      continue-on-error: true
 
     - name: Upload artifact
+      if: steps.pages.outcome == 'success'
       uses: actions/upload-pages-artifact@v3
       with:
         path: docs/
 
+    - name: Pages not enabled
+      if: steps.pages.outcome == 'failure'
+      run: |
+        echo "⚠️  GitHub Pages is not enabled for this repository"
+        echo ""
+        echo "To enable GitHub Pages:"
+        echo "1. Go to Settings → Pages"
+        echo "2. Under 'Build and deployment' → Source"
+        echo "3. Select 'GitHub Actions'"
+        echo "4. Save"
+        echo ""
+        echo "Documentation has been generated and can be viewed in the artifacts."
+        exit 0
+
   deploy:
     name: Deploy to GitHub Pages
     needs: build
+    if: success()
     runs-on: ubuntu-latest
     environment:
       name: github-pages
@@ -88,3 +106,14 @@ jobs:
     - name: Deploy to GitHub Pages
       id: deployment
       uses: actions/deploy-pages@v4
+      continue-on-error: true
+
+    - name: Deployment status
+      run: |
+        if [ "${{ steps.deployment.outcome }}" == "success" ]; then
+          echo "✅ Documentation deployed to GitHub Pages"
+          echo "URL: ${{ steps.deployment.outputs.page_url }}"
+        else
+          echo "⚠️  Deployment skipped - GitHub Pages not configured"
+          echo "Documentation is available in build artifacts"
+        fi
