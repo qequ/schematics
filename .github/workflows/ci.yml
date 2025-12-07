@@ -177,11 +177,41 @@ jobs:
     - name: Create source archive
       run: |
         VERSION="${{ steps.get_version.outputs.VERSION }}"
+
+        # Build list of files/directories to include
+        INCLUDE_PATHS=""
+        for item in src spec examples; do
+          if [ -e "$item" ]; then
+            INCLUDE_PATHS="$INCLUDE_PATHS $item"
+          fi
+        done
+
+        # Add markdown files
+        for file in *.md; do
+          if [ -f "$file" ]; then
+            INCLUDE_PATHS="$INCLUDE_PATHS $file"
+          fi
+        done
+
+        # Add yml files
+        for file in *.yml; do
+          if [ -f "$file" ]; then
+            INCLUDE_PATHS="$INCLUDE_PATHS $file"
+          fi
+        done
+
+        # Add LICENSE if exists
+        if [ -f LICENSE ]; then
+          INCLUDE_PATHS="$INCLUDE_PATHS LICENSE"
+        fi
+
+        echo "Creating archive with: $INCLUDE_PATHS"
+
         tar -czf schematics-${VERSION}-source.tar.gz \
           --exclude='.git' \
           --exclude='release' \
           --exclude='docs' \
-          src/ spec/ examples/ *.md *.yml LICENSE
+          $INCLUDE_PATHS
 
     - name: Generate changelog
       id: changelog
