@@ -25,7 +25,7 @@ module Schematics
       @validator : Validator(T),
       required : Bool = true,
       @default : T? = nil,
-      @has_default_value : Bool = false
+      @has_default_value : Bool = false,
     )
       super(name, required)
     end

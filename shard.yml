@@ -5,6 +5,6 @@ version: 0.2.0
 authors:
   - Alvaro Frias Garay <alvarofriasgaray@gmail.com>
 
-crystal: 1.11.2
+crystal: 1.18.2
 
 license: MIT
