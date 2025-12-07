@@ -1,10 +1,10 @@
 name: schematics
 description: a library to validate data using schemas
-version: 0.1.0
+version: 0.2.0
 
 authors:
   - Alvaro Frias Garay <alvarofriasgaray@gmail.com>
 
-crystal: 1.7.2
+crystal: 1.11.2
 
 license: MIT
