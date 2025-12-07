@@ -27,7 +27,7 @@ jobs:
         crystal: ${{ matrix.crystal }}
 
     - name: Cache shards
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       with:
         path: |
           ~/.cache/crystal
@@ -61,7 +61,21 @@ jobs:
         crystal: latest
 
     - name: Check code formatting
-      run: crystal tool format --check
+      run: |
+        echo "🔍 Checking code formatting..."
+        echo "Files to be checked:"
+        find . -name "*.cr" -type f | grep -v "/lib/"
+        echo ""
+        echo "Running format check..."
+        crystal tool format --check || {
+          echo ""
+          echo "❌ Format check failed! Files that need formatting:"
+          crystal tool format --check 2>&1 | grep "formatting" || true
+          echo ""
+          echo "To fix locally, run: crystal tool format"
+          exit 1
+        }
+        echo "✅ All files are properly formatted!"
 
   lint:
     name: Static Analysis
@@ -108,7 +122,7 @@ jobs:
       run: crystal docs
 
     - name: Upload documentation artifacts
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: documentation
         path: docs/
