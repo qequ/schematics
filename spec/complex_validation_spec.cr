@@ -41,9 +41,7 @@ describe "Schematics::Schema - Complex Scenarios" do
     end
 
     it "validates nested hash with multiple levels" do
-      schema = Schematics::Schema(
-        Hash(String, Hash(String, Hash(String, Int32)))
-      ).new
+      schema = Schematics::Schema(Hash(String, Hash(String, Hash(String, Int32)))).new
 
       valid_data = {
         "level1" => {
@@ -148,10 +146,10 @@ describe "Schematics::Schema - Complex Scenarios" do
         .build
 
       schema.valid?([1, 2, 3]).should eq(true)
-      schema.valid?([1]).should eq(false)              # Too small
+      schema.valid?([1]).should eq(false)                # Too small
       schema.valid?([1, 2, 3, 4, 5, 6]).should eq(false) # Too large
-      schema.valid?([1, -2, 3]).should eq(false)       # Negative number
-      schema.valid?([1, 2, 2]).should eq(false)        # Duplicates
+      schema.valid?([1, -2, 3]).should eq(false)         # Negative number
+      schema.valid?([1, 2, 2]).should eq(false)          # Duplicates
     end
 
     it "validates with complex custom logic" do
@@ -172,9 +170,7 @@ describe "Schematics::Schema - Complex Scenarios" do
 
   describe "error message details" do
     it "provides path for deeply nested errors" do
-      schema = Schematics::Schema(
-        Hash(String, Array(Hash(String, Int32)))
-      ).new
+      schema = Schematics::Schema(Hash(String, Array(Hash(String, Int32)))).new
 
       invalid_data = {
         "users" => [
@@ -197,7 +193,7 @@ describe "Schematics::Schema - Complex Scenarios" do
 
       result = schema.validate("short")
       result.valid?.should eq(false)
-      result.errors.size.should be >= 2  # min_length and @ check
+      result.errors.size.should be >= 2 # min_length and @ check
     end
 
     it "provides error value in result" do
@@ -279,7 +275,7 @@ describe "Schematics::Schema - Complex Scenarios" do
       schema = Schematics::Schema(String).new
       schema.valid?("Hello\nWorld").should eq(true)
       schema.valid?("Hello\tWorld").should eq(true)
-      schema.valid?("Hello\u{1F600}World").should eq(true)  # Emoji
+      schema.valid?("Hello\u{1F600}World").should eq(true) # Emoji
     end
 
     it "validates unicode strings" do
@@ -307,7 +303,7 @@ describe "Schematics::Schema - Complex Scenarios" do
       result = schema.parse(["a", "b", "c"])
 
       typeof(result).should eq(Array(String))
-      result.first.upcase.should eq("A")  # String methods available
+      result.first.upcase.should eq("A") # String methods available
     end
 
     it "maintains type information through hashes" do
@@ -380,9 +376,9 @@ describe "Schematics::Schema - Complex Scenarios" do
       # All conditions must be true
       schema.valid?(12).should eq(true)
       schema.valid?(14).should eq(true)
-      schema.valid?(11).should eq(false)  # Not even
-      schema.valid?(5).should eq(false)   # Too small
-      schema.valid?(25).should eq(false)  # Too large
+      schema.valid?(11).should eq(false) # Not even
+      schema.valid?(5).should eq(false)  # Too small
+      schema.valid?(25).should eq(false) # Too large
     end
 
     it "can simulate OR logic with custom validators" do
