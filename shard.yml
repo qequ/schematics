@@ -1,6 +1,6 @@
 name: schematics
 description: a library to validate data using schemas
-version: 0.2.0
+version: 0.3.0
 
 authors:
   - Alvaro Frias Garay <alvarofriasgaray@gmail.com>
