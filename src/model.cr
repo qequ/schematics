@@ -271,4 +271,232 @@ module Schematics
       "must be between #{min} and #{max}"
     )
   end
+
+  # Float64 validators
+  def self.gte(value : Float64)
+    CustomValidator(Float64).new(
+      ->(n : Float64) { n >= value },
+      "must be >= #{value}"
+    )
+  end
+
+  def self.lte(value : Float64)
+    CustomValidator(Float64).new(
+      ->(n : Float64) { n <= value },
+      "must be <= #{value}"
+    )
+  end
+
+  def self.gt(value : Float64)
+    CustomValidator(Float64).new(
+      ->(n : Float64) { n > value },
+      "must be > #{value}"
+    )
+  end
+
+  def self.lt(value : Float64)
+    CustomValidator(Float64).new(
+      ->(n : Float64) { n < value },
+      "must be < #{value}"
+    )
+  end
+
+  def self.range(min : Float64, max : Float64)
+    CustomValidator(Float64).new(
+      ->(n : Float64) { n >= min && n <= max },
+      "must be between #{min} and #{max}"
+    )
+  end
+
+  # Struct module for immutable value types
+  #
+  # Example:
+  # ```
+  # struct Point
+  #   include Schematics::Struct
+  #
+  #   field x, Float64, validators: [Schematics.gte(0.0)]
+  #   field y, Float64, validators: [Schematics.gte(0.0)]
+  # end
+  # ```
+  module Struct
+    macro included
+      VALIDATIONS = [] of Tuple(Symbol, TypeNode, Bool, ASTNode | NilLiteral)
+
+      # Field definition macro for structs (uses getter instead of property)
+      macro field(name, type, required = false, default = nil, validators = nil)
+        # Generate getter only (structs are immutable)
+        \{% if default != nil %}
+          getter \{{name.id}} : \{{type}} = \{{default}}
+        \{% elsif type.resolve.nilable? %}
+          getter \{{name.id}} : \{{type}} = nil
+        \{% else %}
+          getter \{{name.id}} : \{{type}}
+        \{% end %}
+
+        # Add validation logic
+        \{% VALIDATIONS << {name.id.symbolize, type, required, validators} %}
+      end
+
+      macro finished
+        # Generate initializer
+        def initialize(
+          \{% for field_data in VALIDATIONS %}
+            \{% name = field_data[0].id %}
+            \{% type = field_data[1] %}
+            @\{{name}},
+          \{% end %}
+        )
+        end
+
+        # Non-mutating validation - returns hash of errors
+        def errors : Hash(Symbol, Array(String))
+          errs = {} of Symbol => Array(String)
+          \{% for field_data in VALIDATIONS %}
+            \{% name = field_data[0] %}
+            \{% required = field_data[2] %}
+            \{% validators = field_data[3] %}
+
+            # Check required
+            \{% if required %}
+              if @\{{name.id}}.nil?
+                errs[\{{name}}] ||= [] of String
+                errs[\{{name}}] << "is required"
+              end
+            \{% end %}
+
+            # Run validators
+            \{% if validators && !validators.is_a?(NilLiteral) %}
+              if val = @\{{name.id}}
+                \{{validators}}.each do |validator|
+                  result = validator.validate(val, \{{name.stringify}})
+                  unless result.valid?
+                    result.errors.each do |error|
+                      errs[\{{name}}] ||= [] of String
+                      errs[\{{name}}] << error.error_message
+                    end
+                  end
+                end
+              end
+            \{% end %}
+          \{% end %}
+          _collect_custom_errors(errs)
+          errs
+        end
+
+        # Check if struct is valid
+        def valid? : Bool
+          errors.empty?
+        end
+
+        # Validate and raise if invalid
+        def validate! : Bool
+          e = errors
+          unless e.empty?
+            msgs = e.map { |f, ms| "#{f}: #{ms.join(", ")}" }.join("; ")
+            raise Schematics::ValidationError.new("root", msgs)
+          end
+          true
+        end
+
+        # Override for custom validation - adds errors to the passed hash
+        # Only define if not already defined by user
+        \{% unless @type.methods.map(&.name.stringify).includes?("_collect_custom_errors") %}
+          protected def _collect_custom_errors(errs : Hash(Symbol, Array(String)))
+            # Override in struct for custom validation
+          end
+        \{% end %}
+
+        # Generate to_h
+        def to_h : Hash(String, JSON::Any)
+          hash = {} of String => JSON::Any
+          \{% for field_data in VALIDATIONS %}
+            \{% name = field_data[0] %}
+            \{% type = field_data[1] %}
+            val = @\{{name.id}}
+            \{% if type.resolve.nilable? %}
+              if val.nil?
+                hash[\{{name.id.stringify}}] = JSON::Any.new(nil)
+              else
+                \{% inner_type = type.resolve.union_types.find { |t| t != Nil } %}
+                \{% if inner_type == Int32 %}
+                  hash[\{{name.id.stringify}}] = JSON::Any.new(val.to_i64)
+                \{% else %}
+                  hash[\{{name.id.stringify}}] = JSON::Any.new(val)
+                \{% end %}
+              end
+            \{% elsif type.resolve == Int32 %}
+              hash[\{{name.id.stringify}}] = JSON::Any.new(val.to_i64)
+            \{% else %}
+              hash[\{{name.id.stringify}}] = JSON::Any.new(val)
+            \{% end %}
+          \{% end %}
+          hash
+        end
+
+        # Convert to JSON
+        def to_json(io : IO) : Nil
+          to_h.to_json(io)
+        end
+
+        def to_json : String
+          to_h.to_json
+        end
+
+        # Generate from_json
+        def self.from_json(json_str : String) : self
+          data = JSON.parse(json_str)
+          from_hash(data.as_h)
+        end
+
+        def self.from_hash(hash : Hash) : self
+          new(
+            \{% for field_data in VALIDATIONS %}
+              \{% name = field_data[0] %}
+              \{% type = field_data[1] %}
+              \{{name.id}}: begin
+                val = hash[\{{name.id.stringify}}]?
+                if val
+                  \{% if type.resolve.nilable? %}
+                    \{% inner_type = type.resolve.union_types.find { |t| t != Nil } %}
+                    \{% if inner_type == String %}
+                      val.as_s?
+                    \{% elsif inner_type == Int32 %}
+                      val.as_i?.try(&.to_i32)
+                    \{% elsif inner_type == Int64 %}
+                      val.as_i64?
+                    \{% elsif inner_type == Float64 %}
+                      val.as_f?
+                    \{% elsif inner_type == Bool %}
+                      val.as_bool?
+                    \{% else %}
+                      val.as?(\{{inner_type}})
+                    \{% end %}
+                  \{% elsif type.resolve == String %}
+                    val.as_s
+                  \{% elsif type.resolve == Int32 %}
+                    val.as_i.to_i32
+                  \{% elsif type.resolve == Int64 %}
+                    val.as_i64
+                  \{% elsif type.resolve == Float64 %}
+                    val.as_f
+                  \{% elsif type.resolve == Bool %}
+                    val.as_bool
+                  \{% else %}
+                    val.as(\{{type}})
+                  \{% end %}
+                else
+                  \{% if type.resolve.nilable? %}
+                    nil
+                  \{% else %}
+                    raise "Missing required field: " + \{{name.id.stringify}}
+                  \{% end %}
+                end
+              end.as(\{{type}}),
+            \{% end %}
+          )
+        end
+      end
+    end
+  end
 end

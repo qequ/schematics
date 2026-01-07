@@ -350,6 +350,55 @@ The Model DSL uses compile-time macros for zero runtime overhead:
 end
 ```
 
+## Struct Support
+
+For immutable value types, use `Schematics::Struct` instead of inheriting from `Model`:
+
+```crystal
+struct Point
+  include Schematics::Struct
+
+  field x, Float64, validators: [Schematics.gte(0.0)]
+  field y, Float64, validators: [Schematics.gte(0.0)]
+end
+
+struct ServerConfig
+  include Schematics::Struct
+
+  field host, String, required: true
+  field port, Int32, default: 8080, validators: [Schematics.range(1, 65535)]
+  field debug, Bool, default: false
+end
+
+# Usage is the same as Model
+point = Point.new(x: 10.0, y: 20.0)
+point.valid?  # => true
+point.x       # => 10.0 (read-only)
+
+config = ServerConfig.new(host: "localhost", port: 3000, debug: true)
+config.to_json  # => {"host":"localhost","port":3000,"debug":true}
+```
+
+### Custom Validation for Structs
+
+Override `_collect_custom_errors` for custom validation logic:
+
+```crystal
+struct Rectangle
+  include Schematics::Struct
+
+  field width, Float64, validators: [Schematics.gt(0.0)]
+  field height, Float64, validators: [Schematics.gt(0.0)]
+
+  protected def _collect_custom_errors(errs : Hash(Symbol, Array(String)))
+    if width > height * 10
+      errs[:width] ||= [] of String
+      errs[:width] << "aspect ratio too extreme"
+    end
+  end
+end
+```
+
 ## Schema-Based Validation
 
 For simpler use cases without models, use the schema API directly:
@@ -538,7 +587,7 @@ Schemas::POSITIVE_INT.validate(42)
 - [x] JSON serialization/deserialization
 - [x] Built-in validators (length, format, ranges, one_of)
 - [x] Custom validation methods
-- [ ] Struct support in Model DSL
+- [x] Struct support (immutable value types)
 - [ ] Type coercion
 - [ ] JSON Schema export
 - [ ] Async validation
