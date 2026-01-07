@@ -399,18 +399,6 @@ struct Rectangle
 end
 ```
 
-### Float64 Validators
-
-Structs commonly use Float64 for numeric fields. All numeric validators support Float64:
-
-```crystal
-Schematics.gte(0.0)           # >= 0.0
-Schematics.lte(100.0)         # <= 100.0
-Schematics.gt(0.0)            # > 0.0
-Schematics.lt(1.0)            # < 1.0
-Schematics.range(-273.15, 1000.0)  # Between min and max
-```
-
 ## Schema-Based Validation
 
 For simpler use cases without models, use the schema API directly:
