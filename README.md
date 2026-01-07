@@ -379,16 +379,6 @@ config = ServerConfig.new(host: "localhost", port: 3000, debug: true)
 config.to_json  # => {"host":"localhost","port":3000,"debug":true}
 ```
 
-### Struct vs Model
-
-| Feature | Model (class) | Struct |
-|---------|---------------|--------|
-| Definition | `class Foo < Schematics::Model` | `struct Foo` + `include Schematics::Struct` |
-| Mutability | Mutable (property) | Immutable (getter only) |
-| Memory | Heap allocated | Stack allocated |
-| Assignment | Pass by reference | Pass by copy |
-| Performance | ~2μs/validation | ~0.4μs/validation |
-
 ### Custom Validation for Structs
 
 Override `_collect_custom_errors` for custom validation logic:
@@ -610,7 +600,6 @@ Schemas::POSITIVE_INT.validate(42)
 - [x] Built-in validators (length, format, ranges, one_of)
 - [x] Custom validation methods
 - [x] Struct support (immutable value types)
-- [x] Float64 validators
 - [ ] Type coercion
 - [ ] JSON Schema export
 - [ ] Async validation
