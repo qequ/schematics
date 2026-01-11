@@ -61,7 +61,8 @@ module Schematics
     end
 
     # Field definition macro - simpler approach
-    macro field(name, type, required = false, default = nil, validators = nil)
+    # coerce: true enables automatic type coercion from compatible types
+    macro field(name, type, required = false, default = nil, validators = nil, coerce = false)
       # Generate getter/setter
       {% if default != nil %}
         property {{name.id}} : {{type}} = {{default}}
@@ -71,13 +72,13 @@ module Schematics
         property {{name.id}} : {{type}}
       {% end %}
 
-      # Add validation logic
-      {% VALIDATIONS << {name.id.symbolize, type, required, validators} %}
+      # Add validation logic (now includes coerce flag)
+      {% VALIDATIONS << {name.id.symbolize, type, required, validators, coerce} %}
     end
 
     # Generate all methods when class is finished
     macro inherited
-      VALIDATIONS = [] of Tuple(Symbol, TypeNode, Bool, ASTNode | NilLiteral)
+      VALIDATIONS = [] of Tuple(Symbol, TypeNode, Bool, ASTNode | NilLiteral, Bool)
 
       macro finished
         # Generate initializer
@@ -158,36 +159,91 @@ module Schematics
             \{% for field_data in VALIDATIONS %}
               \{% name = field_data[0] %}
               \{% type = field_data[1] %}
+              \{% coerce = field_data[4] %}
               \{{name.id}}: begin
                 val = hash[\{{name.id.stringify}}]?
                 if val
-                  \{% if type.resolve.nilable? %}
-                    \{% inner_type = type.resolve.union_types.find { |t| t != Nil } %}
-                    \{% if inner_type == String %}
-                      val.as_s?
-                    \{% elsif inner_type == Int32 %}
-                      val.as_i?.try(&.to_i32)
-                    \{% elsif inner_type == Int64 %}
-                      val.as_i64?
-                    \{% elsif inner_type == Float64 %}
-                      val.as_f?
-                    \{% elsif inner_type == Bool %}
-                      val.as_bool?
+                  \{% if coerce %}
+                    # Coercion enabled - use Schematics::Coerce
+                    # Use explicit nil check to avoid issues with falsy values (false, 0)
+                    \{% if type.resolve.nilable? %}
+                      \{% inner_type = type.resolve.union_types.find { |t| t != Nil } %}
+                      \{% if inner_type == String %}
+                        Schematics::Coerce.to_string(val.raw)
+                      \{% elsif inner_type == Int32 %}
+                        Schematics::Coerce.to_int32(val.raw)
+                      \{% elsif inner_type == Int64 %}
+                        Schematics::Coerce.to_int64(val.raw)
+                      \{% elsif inner_type == Float64 %}
+                        Schematics::Coerce.to_float64(val.raw)
+                      \{% elsif inner_type == Bool %}
+                        Schematics::Coerce.to_bool(val.raw)
+                      \{% else %}
+                        val.as?(\{{inner_type}})
+                      \{% end %}
+                    \{% elsif type.resolve == String %}
+                      if (coerced = Schematics::Coerce.to_string(val.raw)).nil?
+                        raise "Failed to coerce #{val.raw.class} to String for field '\{{name.id}}'"
+                      else
+                        coerced
+                      end
+                    \{% elsif type.resolve == Int32 %}
+                      if (coerced = Schematics::Coerce.to_int32(val.raw)).nil?
+                        raise "Failed to coerce #{val.raw.class} to Int32 for field '\{{name.id}}'"
+                      else
+                        coerced
+                      end
+                    \{% elsif type.resolve == Int64 %}
+                      if (coerced = Schematics::Coerce.to_int64(val.raw)).nil?
+                        raise "Failed to coerce #{val.raw.class} to Int64 for field '\{{name.id}}'"
+                      else
+                        coerced
+                      end
+                    \{% elsif type.resolve == Float64 %}
+                      if (coerced = Schematics::Coerce.to_float64(val.raw)).nil?
+                        raise "Failed to coerce #{val.raw.class} to Float64 for field '\{{name.id}}'"
+                      else
+                        coerced
+                      end
+                    \{% elsif type.resolve == Bool %}
+                      if (coerced = Schematics::Coerce.to_bool(val.raw)).nil?
+                        raise "Failed to coerce #{val.raw.class} to Bool for field '\{{name.id}}'"
+                      else
+                        coerced
+                      end
                     \{% else %}
-                      val.as?(\{{inner_type}})
+                      val.as(\{{type}})
                     \{% end %}
-                  \{% elsif type.resolve == String %}
-                    val.as_s
-                  \{% elsif type.resolve == Int32 %}
-                    val.as_i.to_i32
-                  \{% elsif type.resolve == Int64 %}
-                    val.as_i64
-                  \{% elsif type.resolve == Float64 %}
-                    val.as_f
-                  \{% elsif type.resolve == Bool %}
-                    val.as_bool
                   \{% else %}
-                    val.as(\{{type}})
+                    # No coercion - strict type matching
+                    \{% if type.resolve.nilable? %}
+                      \{% inner_type = type.resolve.union_types.find { |t| t != Nil } %}
+                      \{% if inner_type == String %}
+                        val.as_s?
+                      \{% elsif inner_type == Int32 %}
+                        val.as_i?.try(&.to_i32)
+                      \{% elsif inner_type == Int64 %}
+                        val.as_i64?
+                      \{% elsif inner_type == Float64 %}
+                        val.as_f?
+                      \{% elsif inner_type == Bool %}
+                        val.as_bool?
+                      \{% else %}
+                        val.as?(\{{inner_type}})
+                      \{% end %}
+                    \{% elsif type.resolve == String %}
+                      val.as_s
+                    \{% elsif type.resolve == Int32 %}
+                      val.as_i.to_i32
+                    \{% elsif type.resolve == Int64 %}
+                      val.as_i64
+                    \{% elsif type.resolve == Float64 %}
+                      val.as_f
+                    \{% elsif type.resolve == Bool %}
+                      val.as_bool
+                    \{% else %}
+                      val.as(\{{type}})
+                    \{% end %}
                   \{% end %}
                 else
                   \{% if type.resolve.nilable? %}
@@ -321,10 +377,11 @@ module Schematics
   # ```
   module Struct
     macro included
-      VALIDATIONS = [] of Tuple(Symbol, TypeNode, Bool, ASTNode | NilLiteral)
+      VALIDATIONS = [] of Tuple(Symbol, TypeNode, Bool, ASTNode | NilLiteral, Bool)
 
       # Field definition macro for structs (uses getter instead of property)
-      macro field(name, type, required = false, default = nil, validators = nil)
+      # coerce: true enables automatic type coercion from compatible types
+      macro field(name, type, required = false, default = nil, validators = nil, coerce = false)
         # Generate getter only (structs are immutable)
         \{% if default != nil %}
           getter \{{name.id}} : \{{type}} = \{{default}}
@@ -334,8 +391,8 @@ module Schematics
           getter \{{name.id}} : \{{type}}
         \{% end %}
 
-        # Add validation logic
-        \{% VALIDATIONS << {name.id.symbolize, type, required, validators} %}
+        # Add validation logic (now includes coerce flag)
+        \{% VALIDATIONS << {name.id.symbolize, type, required, validators, coerce} %}
       end
 
       macro finished
@@ -454,36 +511,91 @@ module Schematics
             \{% for field_data in VALIDATIONS %}
               \{% name = field_data[0] %}
               \{% type = field_data[1] %}
+              \{% coerce = field_data[4] %}
               \{{name.id}}: begin
                 val = hash[\{{name.id.stringify}}]?
                 if val
-                  \{% if type.resolve.nilable? %}
-                    \{% inner_type = type.resolve.union_types.find { |t| t != Nil } %}
-                    \{% if inner_type == String %}
-                      val.as_s?
-                    \{% elsif inner_type == Int32 %}
-                      val.as_i?.try(&.to_i32)
-                    \{% elsif inner_type == Int64 %}
-                      val.as_i64?
-                    \{% elsif inner_type == Float64 %}
-                      val.as_f?
-                    \{% elsif inner_type == Bool %}
-                      val.as_bool?
+                  \{% if coerce %}
+                    # Coercion enabled - use Schematics::Coerce
+                    # Use explicit nil check to avoid issues with falsy values (false, 0)
+                    \{% if type.resolve.nilable? %}
+                      \{% inner_type = type.resolve.union_types.find { |t| t != Nil } %}
+                      \{% if inner_type == String %}
+                        Schematics::Coerce.to_string(val.raw)
+                      \{% elsif inner_type == Int32 %}
+                        Schematics::Coerce.to_int32(val.raw)
+                      \{% elsif inner_type == Int64 %}
+                        Schematics::Coerce.to_int64(val.raw)
+                      \{% elsif inner_type == Float64 %}
+                        Schematics::Coerce.to_float64(val.raw)
+                      \{% elsif inner_type == Bool %}
+                        Schematics::Coerce.to_bool(val.raw)
+                      \{% else %}
+                        val.as?(\{{inner_type}})
+                      \{% end %}
+                    \{% elsif type.resolve == String %}
+                      if (coerced = Schematics::Coerce.to_string(val.raw)).nil?
+                        raise "Failed to coerce #{val.raw.class} to String for field '\{{name.id}}'"
+                      else
+                        coerced
+                      end
+                    \{% elsif type.resolve == Int32 %}
+                      if (coerced = Schematics::Coerce.to_int32(val.raw)).nil?
+                        raise "Failed to coerce #{val.raw.class} to Int32 for field '\{{name.id}}'"
+                      else
+                        coerced
+                      end
+                    \{% elsif type.resolve == Int64 %}
+                      if (coerced = Schematics::Coerce.to_int64(val.raw)).nil?
+                        raise "Failed to coerce #{val.raw.class} to Int64 for field '\{{name.id}}'"
+                      else
+                        coerced
+                      end
+                    \{% elsif type.resolve == Float64 %}
+                      if (coerced = Schematics::Coerce.to_float64(val.raw)).nil?
+                        raise "Failed to coerce #{val.raw.class} to Float64 for field '\{{name.id}}'"
+                      else
+                        coerced
+                      end
+                    \{% elsif type.resolve == Bool %}
+                      if (coerced = Schematics::Coerce.to_bool(val.raw)).nil?
+                        raise "Failed to coerce #{val.raw.class} to Bool for field '\{{name.id}}'"
+                      else
+                        coerced
+                      end
                     \{% else %}
-                      val.as?(\{{inner_type}})
+                      val.as(\{{type}})
                     \{% end %}
-                  \{% elsif type.resolve == String %}
-                    val.as_s
-                  \{% elsif type.resolve == Int32 %}
-                    val.as_i.to_i32
-                  \{% elsif type.resolve == Int64 %}
-                    val.as_i64
-                  \{% elsif type.resolve == Float64 %}
-                    val.as_f
-                  \{% elsif type.resolve == Bool %}
-                    val.as_bool
                   \{% else %}
-                    val.as(\{{type}})
+                    # No coercion - strict type matching
+                    \{% if type.resolve.nilable? %}
+                      \{% inner_type = type.resolve.union_types.find { |t| t != Nil } %}
+                      \{% if inner_type == String %}
+                        val.as_s?
+                      \{% elsif inner_type == Int32 %}
+                        val.as_i?.try(&.to_i32)
+                      \{% elsif inner_type == Int64 %}
+                        val.as_i64?
+                      \{% elsif inner_type == Float64 %}
+                        val.as_f?
+                      \{% elsif inner_type == Bool %}
+                        val.as_bool?
+                      \{% else %}
+                        val.as?(\{{inner_type}})
+                      \{% end %}
+                    \{% elsif type.resolve == String %}
+                      val.as_s
+                    \{% elsif type.resolve == Int32 %}
+                      val.as_i.to_i32
+                    \{% elsif type.resolve == Int64 %}
+                      val.as_i64
+                    \{% elsif type.resolve == Float64 %}
+                      val.as_f
+                    \{% elsif type.resolve == Bool %}
+                      val.as_bool
+                    \{% else %}
+                      val.as(\{{type}})
+                    \{% end %}
                   \{% end %}
                 else
                   \{% if type.resolve.nilable? %}

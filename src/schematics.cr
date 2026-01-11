@@ -5,8 +5,9 @@ require "./validation_result"
 require "./validators"
 require "./field"
 require "./schema"
+require "./coerce"
 require "./model"
 
 module Schematics
-  VERSION = "0.3.0"
+  VERSION = "0.5.0"
 end
