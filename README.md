@@ -155,6 +155,9 @@ class User < Schematics::Model
   field age, Int32,
     validators: [Schematics.gte(0), Schematics.lte(120)]
 
+  # Field with type coercion (converts strings to target type from JSON)
+  field max_connections, Int32, coerce: true
+
   # Combining options
   field username, String,
     required: true,
@@ -399,6 +402,102 @@ struct Rectangle
 end
 ```
 
+## Type Coercion
+
+Schematics supports automatic type coercion when deserializing from JSON. Enable it per-field with `coerce: true`. By default, strict mode is used (no automatic coercion).
+
+### Basic Usage
+
+```crystal
+class UserSettings < Schematics::Model
+  field username, String, required: true
+  field max_connections, Int32, coerce: true  # "50" -> 50
+  field timeout, Float64, coerce: true        # 60 -> 60.0
+  field debug_mode, Bool, coerce: true        # "true" -> true
+end
+
+# JSON with string values gets coerced to proper types
+json = %({"username": "john", "max_connections": "50", "timeout": 30, "debug_mode": "yes"})
+settings = UserSettings.from_json(json)
+settings.max_connections  # => 50 (Int32)
+settings.timeout          # => 30.0 (Float64)
+settings.debug_mode       # => true (Bool)
+```
+
+### Supported Coercions
+
+| Target Type | Accepted Source Types |
+|-------------|----------------------|
+| `Int32` | Int32, Int64 (in range), Float64 (whole numbers), String (numeric), Bool (0/1) |
+| `Int64` | Int32, Int64, Float64 (whole numbers), String (numeric), Bool (0/1) |
+| `Float64` | Float64, Int32, Int64, String (numeric) |
+| `Bool` | Bool, Int (0/1), String (true/false/yes/no/on/off/1/0) |
+| `String` | String, Int32, Int64, Float64, Bool |
+
+### Boolean Coercion Values
+
+The following string values are recognized for boolean coercion:
+- **True**: `"true"`, `"yes"`, `"on"`, `"1"`, `"t"`, `"y"` (case-insensitive)
+- **False**: `"false"`, `"no"`, `"off"`, `"0"`, `"f"`, `"n"` (case-insensitive)
+
+### Strict Mode (Default)
+
+Without `coerce: true`, fields require exact type matches:
+
+```crystal
+class StrictConfig < Schematics::Model
+  field name, String
+  field port, Int32  # No coercion
+end
+
+# This raises an error - port must be an actual integer
+StrictConfig.from_json(%({"name": "app", "port": "8080"}))  # Error!
+
+# This works - port is an integer
+StrictConfig.from_json(%({"name": "app", "port": 8080}))  # OK
+```
+
+### Coercion with Structs
+
+Type coercion also works with `Schematics::Struct`:
+
+```crystal
+struct Coordinate
+  include Schematics::Struct
+
+  field latitude, Float64, coerce: true
+  field longitude, Float64, coerce: true
+end
+
+coord = Coordinate.from_json(%({"latitude": "37.7749", "longitude": "-122.4194"}))
+coord.latitude   # => 37.7749 (Float64)
+coord.longitude  # => -122.4194 (Float64)
+```
+
+### Error Handling
+
+When coercion fails, a descriptive error is raised:
+
+```crystal
+class Config < Schematics::Model
+  field port, Int32, coerce: true
+end
+
+Config.from_json(%({"port": "not a number"}))
+# Raises: "Failed to coerce String to Int32 for field 'port'"
+```
+
+For nilable fields, failed coercion returns `nil` instead of raising:
+
+```crystal
+class OptionalConfig < Schematics::Model
+  field port, Int32?, coerce: true
+end
+
+config = OptionalConfig.from_json(%({"port": "not a number"}))
+config.port  # => nil
+```
+
 ## Schema-Based Validation
 
 For simpler use cases without models, use the schema API directly:
@@ -588,7 +687,7 @@ Schemas::POSITIVE_INT.validate(42)
 - [x] Built-in validators (length, format, ranges, one_of)
 - [x] Custom validation methods
 - [x] Struct support (immutable value types)
-- [ ] Type coercion
+- [x] Type coercion
 - [ ] JSON Schema export
 - [ ] Async validation
 
